@@ -24,6 +24,7 @@ st.markdown("""
 # ==========================
 
 template_df = pd.DataFrame({
+    "Qty": [1],
     "Length": [48],
     "Width": [40],
     "Height": [83],
@@ -65,13 +66,14 @@ if uploaded_file:
         st.error(f"Error reading file: {e}")
         st.stop()
 
-    required_columns = [
-        "Length",
-        "Width",
-        "Height",
-        "Weight",
-        "DoubleStack"
-    ]
+ required_columns = [
+    "Qty",
+    "Length",
+    "Width",
+    "Height",
+    "Weight",
+    "DoubleStack"
+]
 
     missing_columns = [
         col for col in required_columns
@@ -87,12 +89,13 @@ if uploaded_file:
         st.stop()
 
     # Convert numeric fields
-    numeric_columns = [
-        "Length",
-        "Width",
-        "Height",
-        "Weight"
-    ]
+ numeric_columns = [
+    "Qty",
+    "Length",
+    "Width",
+    "Height",
+    "Weight"
+]
 
     for col in numeric_columns:
 
@@ -112,23 +115,41 @@ if uploaded_file:
         use_container_width=True
     )
 
-    total_weight = df["Weight"].sum()
+total_weight = (
+    df["Qty"] *
+    df["Weight"]
+).sum()
 
-    total_pallets = len(df)
+total_pallets = (
+    df["Qty"]
+).sum()
 
-    total_volume_in3 = (
-        df["Length"] *
-        df["Width"] *
-        df["Height"]
-    ).sum()
+total_volume_in3 = (
+    df["Qty"] *
+    df["Length"] *
+    df["Width"] *
+    df["Height"]
+).sum()
 
+df["FloorArea"] = (
+    df["Qty"] *
+    df["Length"] *
+    df["Width"]
+)
+
+total_floor_area = df["FloorArea"].sum()
     total_volume_ft3 = (
         total_volume_in3 / 1728
     )
 
     st.subheader("Cargo Summary")
 
-    col1, col2, col3 = st.columns(3)
+ col1, col2, col3, col4 = st.columns(4)
+
+col4.metric(
+    "Floor Area (in²)",
+    f"{total_floor_area:,.0f}"
+)
 
     col1.metric(
         "Total Pallets",
