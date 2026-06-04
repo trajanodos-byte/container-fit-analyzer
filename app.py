@@ -8,15 +8,34 @@ st.set_page_config(
     layout="wide"
 )
 
+st.info(
+    """
+    Accepted formats:
+
+    • CSV (.csv)
+    • Excel (.xlsx)
+
+    Required columns:
+
+    Length (in)
+    Width (in)
+    Height (in)
+    Weight (kg)
+    """
+)
+
 st.title("🚢 Container Fit Analyzer")
 
 uploaded_file = st.file_uploader(
-    "Upload Excel File",
-    type=["xlsx"]
+    "Upload Cargo File",
+    type=["xlsx", "csv"]
 )
 
 if uploaded_file:
 
+    if uploaded_file.name.endswith(".csv"):
+    df = pd.read_csv(uploaded_file)
+else:
     df = pd.read_excel(uploaded_file)
 
     st.subheader("Uploaded Data")
