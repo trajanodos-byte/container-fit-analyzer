@@ -10,23 +10,45 @@ st.set_page_config(
 
 st.title("🚢 Container Fit Analyzer")
 
-st.info("""
-Accepted formats:
+st.markdown("""
+### How it works
 
-• CSV (.csv)
-• Excel (.xlsx)
-
-Required information:
-
-• Length
-• Width
-• Height
-• Weight
+1. Download the template
+2. Fill in your cargo information
+3. Upload the completed file
+4. Analyze container fit
 """)
 
+# ==========================
+# TEMPLATE DOWNLOAD
+# ==========================
+
+template_df = pd.DataFrame({
+    "Length": [48],
+    "Width": [40],
+    "Height": [83],
+    "Weight": [370],
+    "DoubleStack": ["No"]
+})
+
+template_csv = template_df.to_csv(index=False)
+
+st.download_button(
+    label="📥 Download Template",
+    data=template_csv,
+    file_name="container_template.csv",
+    mime="text/csv"
+)
+
+st.divider()
+
+# ==========================
+# FILE UPLOAD
+# ==========================
+
 uploaded_file = st.file_uploader(
-    "Upload Cargo File",
-    type=["xlsx", "csv"]
+    "Upload Completed Template",
+    type=["csv", "xlsx"]
 )
 
 if uploaded_file:
@@ -43,45 +65,12 @@ if uploaded_file:
         st.error(f"Error reading file: {e}")
         st.stop()
 
-    # Normalize column names
-    df.columns = [str(col).strip() for col in df.columns]
-
-    column_mapping = {
-        "length": "Length",
-        "length (in)": "Length",
-        "len": "Length",
-        "l": "Length",
-
-        "width": "Width",
-        "width (in)": "Width",
-        "w": "Width",
-
-        "height": "Height",
-        "height (in)": "Height",
-        "h": "Height",
-
-        "weight": "Weight",
-        "weight (kg)": "Weight",
-        "kg": "Weight",
-        "kgs": "Weight",
-        "gross weight": "Weight"
-    }
-
-    normalized_columns = {}
-
-    for col in df.columns:
-        key = col.lower().strip()
-
-        if key in column_mapping:
-            normalized_columns[col] = column_mapping[key]
-
-    df = df.rename(columns=normalized_columns)
-
     required_columns = [
         "Length",
         "Width",
         "Height",
-        "Weight"
+        "Weight",
+        "DoubleStack"
     ]
 
     missing_columns = [
@@ -92,13 +81,20 @@ if uploaded_file:
     if missing_columns:
 
         st.error(
-            f"Missing required columns: {', '.join(missing_columns)}"
+            "Invalid file format. Please use the official template."
         )
 
         st.stop()
 
-    # Convert numeric columns
-    for col in required_columns:
+    # Convert numeric fields
+    numeric_columns = [
+        "Length",
+        "Width",
+        "Height",
+        "Weight"
+    ]
+
+    for col in numeric_columns:
 
         df[col] = pd.to_numeric(
             df[col],
@@ -106,10 +102,10 @@ if uploaded_file:
         )
 
     df = df.dropna(
-        subset=required_columns
+        subset=numeric_columns
     )
 
-    st.subheader("Uploaded Data")
+    st.subheader("Uploaded Cargo")
 
     st.dataframe(
         df,
@@ -120,42 +116,54 @@ if uploaded_file:
 
     total_pallets = len(df)
 
-    st.subheader("Summary")
+    total_volume_in3 = (
+        df["Length"] *
+        df["Width"] *
+        df["Height"]
+    ).sum()
 
-    col1, col2 = st.columns(2)
+    total_volume_ft3 = (
+        total_volume_in3 / 1728
+    )
 
-    with col1:
-        st.metric(
-            "Total Pallets",
-            total_pallets
-        )
+    st.subheader("Cargo Summary")
 
-    with col2:
-        st.metric(
-            "Total Weight (kg)",
-            f"{total_weight:,.2f}"
-        )
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Total Pallets",
+        total_pallets
+    )
+
+    col2.metric(
+        "Total Weight (kg)",
+        f"{total_weight:,.0f}"
+    )
+
+    col3.metric(
+        "Volume (ft³)",
+        f"{total_volume_ft3:,.1f}"
+    )
 
     results = []
 
-    for name, c in CONTAINERS.items():
+    for container_name, container in CONTAINERS.items():
 
         pallets_per_row = int(
-            c["width"] // 40
+            container["width"] // 40
         )
 
         rows = int(
-            c["length"] // 48
+            container["length"] // 48
         )
 
         max_pallets = (
-            pallets_per_row *
-            rows
+            pallets_per_row * rows
         )
 
         weight_ok = (
             total_weight <=
-            c["payload"]
+            container["payload"]
         )
 
         pallet_ok = (
@@ -174,9 +182,9 @@ if uploaded_file:
         ) * 100
 
         results.append({
-            "Container": name,
+            "Container": container_name,
             "Max Pallets": max_pallets,
-            "Payload Limit (kg)": c["payload"],
+            "Payload Limit (kg)": container["payload"],
             "Weight OK": "YES" if weight_ok else "NO",
             "Fits": "YES" if fit else "NO",
             "Utilization %": round(utilization, 1)
@@ -200,7 +208,8 @@ if uploaded_file:
         recommended = fit_options.iloc[0]
 
         st.success(
-            f"Recommended Container: {recommended['Container']}"
+            f"Recommended Container: "
+            f"{recommended['Container']}"
         )
 
     else:
